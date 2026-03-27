@@ -1,0 +1,30 @@
+  {
+  "project_info": {
+    "project_number": "681380961969",
+    "project_id": "my-kiosk-e95a6",
+    "storage_bucket": "my-kiosk-e95a6.firebasestorage.app",
+    "firebase_url": "https://my-kiosk-e95a6-default-rtdb.asia-southeast1.firebasedatabase.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:681380961969:android:f592718a764944bfb6cc90",
+        "android_client_info": {
+          "package_name": "com.example.kiosk_m"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdUQGjd0zaFBqBOCh7CwIfgW2d9gKFXgY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
