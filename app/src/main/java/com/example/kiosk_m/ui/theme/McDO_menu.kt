@@ -1,4 +1,4 @@
-package com.example.kiosk_m.ui
+package com.example.kiosk_m.ui.theme
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -41,23 +42,21 @@ import com.example.kiosk_m.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuScreen(
-    isMcDo: Boolean = false,
+fun McDoMenuScreen(
     firebaseManager: FirebaseManager = FirebaseManager(),
     onBack: () -> Unit,
     onAddItem: (MenuItem) -> Unit
 ) {
-    val themeColor = if (isMcDo) Color(0xFFFFBC0D) else Color(0xFFE31837)
-    val themeTitle = if (isMcDo) "Menu" else "Jollibee Menu"
+    val themeColor = Color(0xFFFFBC0D) // McDo Yellow
+    val themeTitle = "Menu"
     var selectedItem by remember { mutableStateOf<MenuItem?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
-    val categories = listOf("All", "Featured Meals", "Super Meals", "Chickenjoy", "Burgers", "Chicken Fillet")
+    val categories = listOf("All", "Super Meals", "Chicken McDo", "Burgers", "Chicken Fillet")
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Observe menu items from Firebase
     val menuItems by firebaseManager.getMenuItems().collectAsState(initial = emptyList())
 
     ModalNavigationDrawer(
@@ -72,7 +71,7 @@ fun MenuScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF28C12E)) // Green color from image
+                        .background(Color(0xFF28C12E)) // Green color
                         .padding(16.dp)
                 ) {
                     Row(
@@ -148,16 +147,15 @@ fun MenuScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = themeColor,
-                    titleContentColor = if (isMcDo) Color.Black else Color.White,
-                    navigationIconContentColor = if (isMcDo) Color.Black else Color.White,
-                    actionIconContentColor = if (isMcDo) Color.Black else Color.White
+                    titleContentColor = Color.Black,
+                    navigationIconContentColor = Color.Black,
+                    actionIconContentColor = Color.Black
                 )
             )
         },
         containerColor = if (selectedItem == null) Color(0xFFD9D9D9) else Color.White
     ) { padding ->
         if (selectedItem == null) {
-            // MAIN MENU GRID
             Column(modifier = Modifier.padding(padding)) {
                 // Search Bar
                 Surface(
@@ -201,7 +199,7 @@ fun MenuScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.List, 
                         contentDescription = "Open Categories", 
-                        tint = if (isMcDo) Color.Black else Color.White.copy(alpha = 0.7f),
+                        tint = Color.Black.copy(alpha = 0.5f),
                         modifier = Modifier
                             .size(32.dp)
                             .clickable {
@@ -220,11 +218,7 @@ fun MenuScreen(
                                 text = category,
                                 fontSize = 16.sp,
                                 fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selectedCategory == category) {
-                                    if (isMcDo) Color(0xFFE31837) else Color(0xFFE31837) // Selected color
-                                } else {
-                                    Color.Black
-                                },
+                                color = if (selectedCategory == category) Color(0xFFE31837) else Color.Black,
                                 modifier = Modifier.clickable { selectedCategory = category }
                             )
                         }
@@ -237,29 +231,29 @@ fun MenuScreen(
                         (selectedCategory == "All" || it.category == selectedCategory) &&
                         it.name.contains(searchQuery, ignoreCase = true)
                     }
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(filteredItems) { item ->
-                            MenuCard(item = item, onClick = { selectedItem = item })
+                    
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredItems) { item ->
+                                McDoMenuCard(item = item, onClick = { selectedItem = item })
+                            }
                         }
-                    }
                 }
 
                 // Bottom Buttons
-                BottomActionBar(
+                McDoBottomActionBar(
                     onCancel = onBack, 
                     onOrder = { /* TODO */ },
                     themeColor = themeColor
                 )
             }
         } else {
-            // ITEM DETAIL VIEW
-            ItemDetailView(
+            McDoItemDetailView(
                 item = selectedItem!!,
                 paddingValues = padding,
                 onCancel = { selectedItem = null },
@@ -274,27 +268,14 @@ fun MenuScreen(
 }
 
 @Composable
-fun ItemDetailView(
+fun McDoItemDetailView(
     item: MenuItem,
     paddingValues: PaddingValues,
     onCancel: () -> Unit,
     onOrderNow: () -> Unit
 ) {
     var selectedChoice by remember { mutableStateOf("Coke regular") }
-    val choices = listOf(
-        "Coke regular",
-        "Coke Zero Regular",
-        "Go Coke Float",
-        "7up Regular",
-        "Go Large Ice Tea",
-        "Go Large Royal",
-        "Go large Sprite"
-    )
-
-    // Selection states for new options
-    var selectedB by remember { mutableStateOf(setOf<String>()) }
-    var selectedC by remember { mutableStateOf(setOf<String>()) }
-    var selectedD by remember { mutableStateOf(setOf<String>()) }
+    val choices = listOf("Coke regular", "Coke Zero Regular", "Go Coke Float", "7up Regular")
 
     Column(
         modifier = Modifier
@@ -302,21 +283,13 @@ fun ItemDetailView(
             .padding(paddingValues)
             .background(Color.White)
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
             item {
-                // Product Image
                 if (item.imageUrl.isNotEmpty()) {
                     AsyncImage(
                         model = item.imageUrl,
                         contentDescription = item.name,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(280.dp)
-                            .padding(20.dp),
+                        modifier = Modifier.fillMaxWidth().height(280.dp).padding(20.dp),
                         contentScale = ContentScale.Fit,
                         placeholder = painterResource(id = R.drawable.d_meal2),
                         error = painterResource(id = R.drawable.d_meal2)
@@ -325,15 +298,11 @@ fun ItemDetailView(
                     Image(
                         painter = painterResource(id = if (item.imageRes != 0) item.imageRes else R.drawable.d_meal2),
                         contentDescription = item.name,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(280.dp)
-                            .padding(20.dp),
+                        modifier = Modifier.fillMaxWidth().height(280.dp).padding(20.dp),
                         contentScale = ContentScale.Fit
                     )
                 }
 
-                // Product Name
                 Text(
                     text = item.name,
                     fontSize = 24.sp,
@@ -345,164 +314,35 @@ fun ItemDetailView(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Choice Card A
+                // Basic Choice Card
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(15.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     border = BorderStroke(1.dp, Color(0xFFF0F0F0))
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            "Choice A*",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.Black
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
+                        Text("Choice A*", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         choices.forEach { choice ->
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedChoice = choice }
-                                    .padding(vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth().clickable { selectedChoice = choice }.padding(vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RadioButton(
-                                    selected = selectedChoice == choice,
-                                    onClick = { selectedChoice = choice },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color.Gray)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = choice, fontSize = 15.sp, color = Color.Black)
+                                RadioButton(selected = selectedChoice == choice, onClick = { selectedChoice = choice })
+                                Text(text = choice, modifier = Modifier.padding(start = 8.dp))
                             }
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Choice B (Optional)
-                ChoiceCheckboxCard(
-                    title = "Choice B",
-                    optional = true,
-                    items = listOf("Extra Chickenjoy Gravy", "Extra Rice"),
-                    prices = mapOf("Extra Chickenjoy Gravy" to "+5", "Extra Rice" to "+35"),
-                    selectedItems = selectedB,
-                    onToggle = { item ->
-                        selectedB = if (selectedB.contains(item)) selectedB - item else selectedB + item
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Choice C (Optional)
-                ChoiceCheckboxCard(
-                    title = "Choice C",
-                    optional = true,
-                    items = listOf("Large Jolly Crispy Fries", "Medium Jolly Fries", "Regular Jolly Fries"),
-                    selectedItems = selectedC,
-                    onToggle = { item ->
-                        selectedC = if (selectedC.contains(item)) selectedC - item else selectedC + item
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Choice D (Optional)
-                ChoiceCheckboxCard(
-                    title = "Choice D",
-                    optional = true,
-                    items = listOf(
-                        "Chocolate Sundae",
-                        "Cookies & Cream Sundae",
-                        "Go Mini Choco Sundae",
-                        "Large Peace Mango Pie",
-                        "Regular Peace Mango Pie",
-                        "Rocky Road Sundae Made w KITKAT"
-                    ),
-                    selectedItems = selectedD,
-                    onToggle = { item ->
-                        selectedD = if (selectedD.contains(item)) selectedD - item else selectedD + item
-                    }
-                )
-
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
-
-        // Bottom Action Bar
-        BottomActionBar(onCancel = onCancel, onOrder = onOrderNow)
+        McDoBottomActionBar(onCancel = onCancel, onOrder = onOrderNow, themeColor = Color(0xFFFFBC0D))
     }
 }
 
 @Composable
-fun ChoiceCheckboxCard(
-    title: String,
-    optional: Boolean = false,
-    items: List<String>,
-    prices: Map<String, String> = emptyMap(),
-    selectedItems: Set<String>,
-    onToggle: (String) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(15.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, Color(0xFFF0F0F0))
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color.Black
-                )
-                if (optional) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "(Optional)",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            items.forEach { item ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onToggle(item) }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = selectedItems.contains(item),
-                        onCheckedChange = { onToggle(item) },
-                        colors = CheckboxDefaults.colors(checkedColor = Color.Gray)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = item, fontSize = 15.sp, color = Color.Black, modifier = Modifier.weight(1f))
-                    prices[item]?.let { price ->
-                        Text(text = price, fontSize = 15.sp, color = Color.Black)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun BottomActionBar(onCancel: () -> Unit, onOrder: () -> Unit, themeColor: Color = Color(0xFFE31837)) {
+fun McDoBottomActionBar(onCancel: () -> Unit, onOrder: () -> Unit, themeColor: Color) {
     Surface(
         color = Color(0xFFD9D9D9),
         modifier = Modifier.fillMaxWidth()
@@ -519,27 +359,60 @@ fun BottomActionBar(onCancel: () -> Unit, onOrder: () -> Unit, themeColor: Color
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (themeColor == Color(0xFFFFBC0D)) Color(0xFFFFBC0D) else themeColor),
+                colors = ButtonDefaults.buttonColors(containerColor = themeColor),
                 shape = RoundedCornerShape(27.dp)
             ) {
-                Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (themeColor == Color(0xFFFFBC0D)) Color.Black else Color.White)
+                Text("Cancel", fontWeight = FontWeight.Bold, color = Color.Black)
             }
             Button(
                 onClick = onOrder,
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (themeColor == Color(0xFFFFBC0D)) Color(0xFFFFBC0D) else themeColor),
+                colors = ButtonDefaults.buttonColors(containerColor = themeColor),
                 shape = RoundedCornerShape(27.dp)
             ) {
-                Text("Order Now", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (themeColor == Color(0xFFFFBC0D)) Color.Black else Color.White)
+                Text("Order Now", fontWeight = FontWeight.Bold, color = Color.Black)
             }
         }
     }
 }
 
 @Composable
-fun MenuCard(item: MenuItem, onClick: () -> Unit) {
+fun FeaturedMenuCard(item: MenuItem, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.9f)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (item.imageUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.d_meal2),
+                    error = painterResource(id = R.drawable.d_meal2)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = if (item.imageRes != 0) item.imageRes else R.drawable.d_meal2),
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun McDoMenuCard(item: MenuItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -551,7 +424,7 @@ fun MenuCard(item: MenuItem, onClick: () -> Unit) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Image Section with rounded corners and light grey background
+            // Image Section
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -600,7 +473,8 @@ fun MenuCard(item: MenuItem, onClick: () -> Unit) {
                     lineHeight = 16.sp,
                     modifier = Modifier
                         .weight(1.2f)
-                        .padding(end = 8.dp)
+                        .padding(end = 8.dp),
+                    maxLines = 2
                 )
                 
                 Column(
@@ -616,13 +490,13 @@ fun MenuCard(item: MenuItem, onClick: () -> Unit) {
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Jollibee Red Plus Button
+                    // Yellow Plus Button
                     Surface(
                         modifier = Modifier
                             .size(24.dp)
                             .clickable { onClick() },
                         shape = CircleShape,
-                        color = Color(0xFFE31837) // Jollibee Red
+                        color = Color(0xFFFFBC0D)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(

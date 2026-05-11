@@ -208,12 +208,12 @@ fun LoginScreen(
                         fontWeight = FontWeight.Bold
                     )
                     
-                    Spacer(modifier = Modifier.height(120.dp)) // Increased spacer to move button lower
+                    Spacer(modifier = Modifier.height(60.dp)) // Reduced spacer to move button up
                     
                     // TOGGLE BUTTON CONTAINER
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxWidth(0.85f) // Adjusted width to match the image better
                             .height(60.dp)
                             .shadow(12.dp, RoundedCornerShape(12.dp)) // Drop shadow
                             .clip(RoundedCornerShape(12.dp))
@@ -380,13 +380,14 @@ class LoginViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
 
     fun loginUser(email: String, pass: String, onResult: (Boolean, String?) -> Unit) {
-        auth.signInWithEmailAndPassword(email, pass)
+        val trimmedEmail = email.trim()
+        auth.signInWithEmailAndPassword(trimmedEmail, pass)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     onResult(true, null)
                 } else {
                     val error = task.exception?.localizedMessage ?: "Login failed"
-                    android.util.Log.e("FirebaseAuth", "Login failed: $error")
+                    android.util.Log.e("FirebaseAuth", "Login failed for $trimmedEmail: $error")
                     onResult(false, error)
                 }
             }

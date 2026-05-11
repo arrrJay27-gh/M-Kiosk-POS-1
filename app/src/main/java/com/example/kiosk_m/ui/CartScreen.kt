@@ -23,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.kiosk_m.MenuItem
 import com.example.kiosk_m.R
 import java.util.Locale
@@ -256,12 +257,23 @@ fun CartItemRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(id = item.imageRes),
-            contentDescription = item.name,
-            modifier = Modifier.size(80.dp),
-            contentScale = ContentScale.Fit
-        )
+        if (item.imageUrl.isNotEmpty()) {
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = item.name,
+                modifier = Modifier.size(80.dp),
+                contentScale = ContentScale.Fit,
+                placeholder = painterResource(id = R.drawable.d_meal2),
+                error = painterResource(id = R.drawable.d_meal2)
+            )
+        } else {
+            Image(
+                painter = painterResource(id = if (item.imageRes != 0) item.imageRes else R.drawable.d_meal2),
+                contentDescription = item.name,
+                modifier = Modifier.size(80.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

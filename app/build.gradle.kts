@@ -69,4 +69,7 @@ dependencies {
 
     // Add the dependency for the Realtime Database library
     implementation("com.google.firebase:firebase-database-ktx")
+
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

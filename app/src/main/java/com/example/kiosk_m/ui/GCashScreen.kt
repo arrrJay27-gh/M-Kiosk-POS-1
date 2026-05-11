@@ -27,23 +27,37 @@ fun GCashScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("GCash Payment", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Jollibee Menu",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 },
                 actions = {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel")
+                    IconButton(onClick = { /* Handle Cart */ }) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = "Cart",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFE31837),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = Color(0xFFE31837) // Jollibee Red
                 )
             )
         }
@@ -52,22 +66,22 @@ fun GCashScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFE0E0E0)) // Light gray background
+                .background(Color(0xFFF2F2F2)) // Standard light gray
         ) {
             // Blue Header Section
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
-                    .background(Color(0xFF0000FF)), // Bright blue
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .height(140.dp)
+                    .background(Color(0xFF0000FF)), // GCash Blue
+                contentAlignment = Alignment.TopCenter
             ) {
                 Text(
                     "GCash",
                     color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 20.dp)
                 )
             }
 
@@ -75,15 +89,15 @@ fun GCashScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
-                    .padding(top = 60.dp),
-                shape = RoundedCornerShape(24.dp),
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 85.dp, bottom = 24.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(32.dp)
+                        .padding(24.dp)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -91,44 +105,49 @@ fun GCashScreen(
                         "Securely complete the payment\nwith your Gcash app",
                         textAlign = TextAlign.Center,
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF444444),
                         lineHeight = 22.sp
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
                         onClick = onProceed,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
+                            .height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0000FF)),
-                        shape = RoundedCornerShape(25.dp)
+                        shape = RoundedCornerShape(24.dp)
                     ) {
-                        Text("Open in Gcash", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            "Open in Gcash",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
                         "or Log in to Gcash and scan this QR with\nthe QR Scanner.",
                         textAlign = TextAlign.Center,
-                        fontSize = 13.sp,
-                        color = Color.Black,
-                        lineHeight = 18.sp
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Normal
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    // QR Code Placeholder
+                    // QR Code Container
                     Box(
                         modifier = Modifier
                             .size(180.dp)
-                            .background(Color.White),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Using a placeholder icon for QR
                         Icon(
                             imageVector = Icons.Default.QrCode2,
                             contentDescription = "QR Code",
@@ -136,22 +155,36 @@ fun GCashScreen(
                             tint = Color.Black
                         )
                         
-                        // Small "instaPay" like logo simulation in center
+                        // instaPay Logo in Center
                         Surface(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(44.dp),
                             color = Color.White,
                             shape = RoundedCornerShape(4.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
                         ) {
                             Column(
+                                modifier = Modifier.fillMaxSize(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                Text("insta", fontSize = 8.sp, color = Color.Blue, fontWeight = FontWeight.Bold)
-                                Text("Pay", fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "insta", 
+                                    fontSize = 10.sp, 
+                                    color = Color(0xFF005CAB), 
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 10.sp
+                                )
+                                Text(
+                                    "Pay", 
+                                    fontSize = 12.sp, 
+                                    color = Color(0xFFED1C24), 
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 12.sp
+                                )
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }

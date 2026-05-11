@@ -24,6 +24,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentScreen(
+    isMcDo: Boolean = false,
     cartItems: List<MenuItem>,
     onBack: () -> Unit,
     onProceed: () -> Unit,
@@ -31,12 +32,14 @@ fun PaymentScreen(
 ) {
     var selectedPaymentMethod by remember { mutableStateOf("G-cash") }
     val totalAmount = cartItems.sumOf { it.price }
+    val primaryColor = if (isMcDo) Color(0xFFFFBC0D) else Color(0xFFE31837)
+    val contentColor = if (isMcDo) Color.Black else Color.White
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Jollibee Menu", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (isMcDo) "McDonald's Menu" else "Jollibee Menu", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -49,10 +52,10 @@ fun PaymentScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFE31837),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = primaryColor,
+                    titleContentColor = contentColor,
+                    navigationIconContentColor = contentColor,
+                    actionIconContentColor = contentColor
                 )
             )
         },
@@ -73,20 +76,20 @@ fun PaymentScreen(
                         modifier = Modifier
                             .weight(1f)
                             .height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE31837)),
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
                         shape = RoundedCornerShape(27.dp)
                     ) {
-                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = contentColor)
                     }
                     Button(
                         onClick = onProceed,
                         modifier = Modifier
                             .weight(1f)
                             .height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE31837)),
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
                         shape = RoundedCornerShape(27.dp)
                     ) {
-                        Text("Procced", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                        Text("Procced", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = contentColor)
                     }
                 }
             }

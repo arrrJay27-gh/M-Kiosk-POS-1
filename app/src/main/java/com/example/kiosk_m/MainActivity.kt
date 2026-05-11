@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
 import com.example.kiosk_m.ui.LoginScreen
 import com.example.kiosk_m.ui.MenuScreen
 import com.example.kiosk_m.ui.CartScreen
@@ -45,10 +46,14 @@ import com.example.kiosk_m.ui.PaymentScreen
 import com.example.kiosk_m.ui.GCashScreen
 import com.example.kiosk_m.ui.OrdersScreen
 import com.example.kiosk_m.ui.SignUpScreen
+import com.example.kiosk_m.ui.theme.McDoMenuScreen
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import android.os.Build
+import androidx.compose.runtime.collectAsState
 import com.google.firebase.FirebaseApp
 import java.util.Locale
+import com.example.kiosk_m.R
 
 class MainActivity : ComponentActivity() {
     private val firebaseManager = FirebaseManager()
@@ -62,19 +67,31 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var currentScreen by remember { mutableStateOf("home") }
-            var isLoggedIn by remember { mutableStateOf(false) }
+            var isMcDoMode by remember { mutableStateOf(false) }
+            var isLoggedIn by remember { mutableStateOf(firebaseManager.isUserLoggedIn()) }
             val cartItems = remember { mutableStateListOf<MenuItem>() }
-            val activeOrders = remember { mutableStateListOf<MenuItem>() }
+            val activeOrders = remember { mutableStateListOf<Order>() }
 
-            val bottomBar: @Composable () -> Unit = {
-                KioskBottomBar(
-                    cartCount = cartItems.size,
-                    onNavigateToMenu = { currentScreen = "menu" },
-                    onNavigateToCart = { currentScreen = "cart" },
-                    onNavigateToOrders = { currentScreen = "orders" },
-                    onNavigateToHome = { currentScreen = "home" },
-                    currentScreen = currentScreen
-                )
+            // Sync with Firebase when logged in
+            LaunchedEffect(isLoggedIn) {
+                if (isLoggedIn) {
+                    firebaseManager.getCartItemsOnce { items ->
+                        cartItems.clear()
+                        cartItems.addAll(items)
+                    }
+                    firebaseManager.getActiveOrdersOnce { orders ->
+                        activeOrders.clear()
+                        activeOrders.addAll(orders)
+                    }
+                }
+            }
+
+            // Save changes to Firebase
+            LaunchedEffect(cartItems.toList()) {
+                if (isLoggedIn) firebaseManager.saveCartItems(cartItems)
+            }
+            LaunchedEffect(activeOrders.toList()) {
+                if (isLoggedIn) firebaseManager.saveActiveOrders(activeOrders)
             }
 
             when (currentScreen) {
@@ -91,22 +108,42 @@ class MainActivity : ComponentActivity() {
                     SignUpScreen(
                         onBack = { currentScreen = "login" },
                         onSignUpComplete = {
-                            currentScreen = "login"
+                            isLoggedIn = true
+                            currentScreen = "home"
                         }
                     )
                 }
                 "menu" -> {
-                    MenuScreen(
-                        onBack = { currentScreen = "home" },
-                        onAddItem = { item ->
-                            if (!isLoggedIn) {
-                                currentScreen = "login"
-                            } else {
-                                cartItems.add(item)
-                                currentScreen = "cart"
+                    if (isMcDoMode) {
+                        McDoMenuScreen(
+                            firebaseManager = firebaseManager,
+                            onBack = { 
+                                isMcDoMode = false
+                                currentScreen = "home" 
+                            },
+                            onAddItem = { item ->
+                                if (!isLoggedIn) {
+                                    currentScreen = "login"
+                                } else {
+                                    cartItems.add(item)
+                                    currentScreen = "cart"
+                                }
                             }
-                        }
-                    )
+                        )
+                    } else {
+                        MenuScreen(
+                            firebaseManager = firebaseManager,
+                            onBack = { currentScreen = "home" },
+                            onAddItem = { item ->
+                                if (!isLoggedIn) {
+                                    currentScreen = "login"
+                                } else {
+                                    cartItems.add(item)
+                                    currentScreen = "cart"
+                                }
+                            }
+                        )
+                    }
                 }
                 "cart" -> {
                     CartScreen(
@@ -122,6 +159,7 @@ class MainActivity : ComponentActivity() {
                 }
                 "payment" -> {
                     PaymentScreen(
+                        isMcDo = isMcDoMode,
                         cartItems = cartItems,
                         onBack = { currentScreen = "cart" },
                         onProceed = { currentScreen = "gcash_payment" },
@@ -132,7 +170,14 @@ class MainActivity : ComponentActivity() {
                     GCashScreen(
                         onBack = { currentScreen = "payment" },
                         onProceed = {
-                            activeOrders.addAll(cartItems)
+                            val newOrder = Order(
+                                id = "ORD-${System.currentTimeMillis()}",
+                                items = cartItems.toList(),
+                                status = "Preparing.....",
+                                timestamp = System.currentTimeMillis(),
+                                isMcDo = isMcDoMode
+                            )
+                            activeOrders.add(newOrder)
                             cartItems.clear()
                             currentScreen = "orders"
                         },
@@ -144,10 +189,9 @@ class MainActivity : ComponentActivity() {
                         orders = activeOrders,
                         onBack = { currentScreen = "home" },
                         onNavigateToCart = { currentScreen = "cart" },
-                        onOrderReceived = { 
-                            activeOrders.clear()
-                        },
-                        bottomBar = bottomBar
+                        onOrderReceived = { order ->
+                            activeOrders.remove(order)
+                        }
                     )
                 }
                 "home" -> {
@@ -157,9 +201,10 @@ class MainActivity : ComponentActivity() {
                         cartItems = cartItems,
                         onLoginRequired = { currentScreen = "login" },
                         onLogout = { isLoggedIn = false },
-                        onNavigateToMenu = { currentScreen = "menu" },
-                        onNavigateToCart = { currentScreen = "cart" },
-                        bottomBar = bottomBar
+                        onNavigateToMenu = { isMcDo ->
+                            isMcDoMode = isMcDo
+                            currentScreen = "menu"
+                        }
                     )
                 }
             }
@@ -174,12 +219,18 @@ fun HomepageView(
     cartItems: MutableList<MenuItem>,
     onLoginRequired: () -> Unit,
     onLogout: () -> Unit,
-    onNavigateToMenu: () -> Unit,
-    onNavigateToCart: () -> Unit,
-    bottomBar: @Composable () -> Unit
+    onNavigateToMenu: (Boolean) -> Unit
 ) {
     var userName by remember { mutableStateOf("Guest") }
     var userLocation by remember { mutableStateOf("1600 - Mountain View") }
+    val featuredMeals = listOf(
+        MenuItem(id = "1", name = "Big Mac", imageRes = R.drawable.menu_burgers_500x500_bigmac_500),
+        MenuItem(id = "2", name = "1pc. Chicken McDo with Rice", imageRes = R.drawable.menu_chicken_500x500_1pcchickenmcdo_plus_rice_500),
+        MenuItem(id = "3", name = "Coke McFloat", imageRes = R.drawable.menu_drinks_500x500_mcfloatcoke_500_500),
+        MenuItem(id = "4", name = "McCafe Cappuccino", imageRes = R.drawable.mccafe_capuccino_500),
+        MenuItem(id = "5", name = "Fries", imageRes = R.drawable.menu_fries_500x500_friesmedium_500),
+        MenuItem(id = "6", name = "Big Breakfast with Rice", imageRes = R.drawable.d_meal3)
+    )
     val context = LocalContext.current
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -218,7 +269,10 @@ fun HomepageView(
         modifier = Modifier
             .fillMaxSize()
             .drawBehind {
-                drawRect(color = Color(0xFFE31837))
+                // Background color (Bottom part - Yellow)
+                drawRect(color = Color(0xFFFFD571))
+                
+                // Top part (Red diagonal)
                 val path = Path().apply {
                     moveTo(0f, 0f)
                     lineTo(size.width, 0f)
@@ -230,8 +284,7 @@ fun HomepageView(
             }
     ) {
         Scaffold(
-            containerColor = Color.Transparent,
-            bottomBar = bottomBar
+            containerColor = Color.Transparent
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
                 LazyVerticalGrid(
@@ -240,8 +293,8 @@ fun HomepageView(
                         .fillMaxSize()
                         .statusBarsPadding(),
                     contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item(span = { GridItemSpan(2) }) {
                         Column {
@@ -270,7 +323,7 @@ fun HomepageView(
                             }
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                text = "Choose your day!",
+                                text = "Choose you day!",
                                 color = Color.White,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold
@@ -280,48 +333,32 @@ fun HomepageView(
                     }
 
                     item(span = { GridItemSpan(2) }) {
-                        PromoCardJollibee(onOrder = onNavigateToMenu)
+                        PromoCardJollibee(onOrder = {
+                            onNavigateToMenu(false)
+                        })
                     }
 
                     item(span = { GridItemSpan(2) }) {
-                        PromoCardMcDo(onOrder = onNavigateToMenu)
+                        PromoCardMcDo(onOrder = {
+                            onNavigateToMenu(true)
+                        })
                     }
 
                     item(span = { GridItemSpan(2) }) {
-                        Row(
-                            modifier = Modifier.padding(top = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Restaurant,
-                                null,
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                text = "Featured meal",
-                                color = Color.White,
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Text(
+                            text = "Featured meal",
+                            color = Color.White,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
                     }
-
-                    val featuredMeals = listOf(
-                        MenuItem("1", "Mushroom Pepper Steak", 95.0, "Rice Meals", R.drawable.d_meal1),
-                        MenuItem("2", "1pc Chicken McDo", 125.0, "Chicken", R.drawable.d_meal2),
-                        MenuItem("3", "Cheeseburger Deluxe", 85.0, "Burgers", R.drawable.d_meal3),
-                        MenuItem("4", "McSpaghetti", 110.0, "Pasta", R.drawable.d_meal2),
-                        MenuItem("5", "Burger McDo", 65.0, "Burgers", R.drawable.d_meal1),
-                        MenuItem("6", "Big Mac", 199.0, "Burgers", R.drawable.d_meal3)
-                    )
 
                     items(featuredMeals) { meal ->
-                        MealCard(
+                        FeaturedMealCard(
                             item = meal,
-                            onAdd = {
-                                if (!isLoggedIn) onLoginRequired() else cartItems.add(it)
+                            onClick = {
+                                if (!isLoggedIn) onLoginRequired() else cartItems.add(meal)
                             }
                         )
                     }
@@ -368,11 +405,10 @@ fun PromoCardMcDo(onOrder: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(190.dp)
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(20.dp),
+            .height(190.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFBC0D)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -397,7 +433,7 @@ fun PromoCardMcDo(onOrder: () -> Unit) {
                 text = "McSavers Sulit Busog\nMeals Philippines 2026",
                 color = Color.Black,
                 fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
+                fontSize = 12.sp,
                 lineHeight = 22.sp,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -407,39 +443,42 @@ fun PromoCardMcDo(onOrder: () -> Unit) {
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 5.dp, end = 90.dp)
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 65.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.d_meal2),
                     contentDescription = null,
-                    modifier = Modifier.size(60.dp)
+                    modifier = Modifier.size(45.dp)
                 )
-                Text("1pc chicken mcdo", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("1pc chicken mcdo", color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold)
             }
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 150.dp, top = 30.dp)
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 110.dp, top = 10.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.d_meal1),
                     contentDescription = null,
-                    modifier = Modifier.size(70.dp)
+                    modifier = Modifier.padding(top = 3.dp, end = 5.dp). size(65.dp)
                 )
-                Text("Mushroom pepper Steak", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("Mushroom pepper Steak", color = Color.White, fontSize =8.sp, fontWeight = FontWeight.SemiBold)
             }
 
             Image(
                 painter = painterResource(id = R.drawable.d_meal3),
                 contentDescription = null,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(top = 5.dp, end = 25.dp).size(70.dp)
+                modifier = Modifier.align(Alignment.CenterEnd)
+                    .padding(top = 2.dp,
+                        end = 25.dp).
+                    size(60.dp)
             )
 
             Button(
                 onClick = onOrder,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 12.dp, bottom = 12.dp)
+                    .padding(end = 10.dp, bottom = 10.dp)
                     .height(40.dp)
                     .width(130.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -462,13 +501,20 @@ fun fetchRealLocation(context: Context, onLocationFetched: (String) -> Unit) {
             if (location != null) {
                 try {
                     val geocoder = Geocoder(context, Locale.getDefault())
-                    val addresses: List<Address>? = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                    if (!addresses.isNullOrEmpty()) {
-                        val address = addresses[0]
-                        val featureName = address.featureName ?: ""
-                        onLocationFetched(featureName)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
+                            if (addresses.isNotEmpty()) {
+                                onLocationFetched(addresses[0].featureName ?: "")
+                            }
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                        if (!addresses.isNullOrEmpty()) {
+                            onLocationFetched(addresses[0].featureName ?: "")
+                        }
                     }
-                } catch (e: Exception) { }
+                } catch (_: Exception) { }
             }
         }
 }
@@ -476,21 +522,74 @@ fun fetchRealLocation(context: Context, onLocationFetched: (String) -> Unit) {
 @Composable
 fun LocationHeader(locationName: String) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(60.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.5.dp, Color.White),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        modifier = Modifier.fillMaxWidth().height(54.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f))
     ) {
         Row(
-            Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            Modifier.fillMaxSize().padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.LocationOn, null, tint = Color.White, modifier = Modifier.size(24.dp))
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("YOU'RE ORDERING FROM", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                Text(locationName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                Text(
+                    text = "YOU'RE ORDERING FROM",
+                    color = Color.White,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = locationName,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                )
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun FeaturedMealCard(item: MenuItem, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (item.imageUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.d_meal1),
+                    error = painterResource(id = R.drawable.d_meal1)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = if (item.imageRes != 0) item.imageRes else R.drawable.d_meal1),
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
     }
 }
@@ -508,12 +607,25 @@ fun MealCard(item: MenuItem, onAdd: (MenuItem) -> Unit) {
         Column(
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = painterResource(id = item.imageRes),
-                contentDescription = null,
-                modifier = Modifier.size(100.dp),
-                contentScale = ContentScale.Fit
-            )
+            
+            if (item.imageUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.name,
+                    modifier = Modifier.size(100.dp),
+                    contentScale = ContentScale.Fit,
+                    placeholder = painterResource(id = R.drawable.d_meal1), // Use a default placeholder
+                    error = painterResource(id = R.drawable.d_meal1)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.d_meal1),
+                    contentDescription = null,
+                    modifier = Modifier.size(100.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
             Text(
                 text = item.name,
@@ -545,11 +657,11 @@ fun KioskBottomBar(
 ) {
     Surface(
         color = Color(0xFFFFBC0D),
-        modifier = modifier.fillMaxWidth().height(90.dp),
+        modifier = modifier.fillMaxWidth().height(70.dp),
         shadowElevation = 8.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxSize().padding(bottom = 7.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -619,7 +731,7 @@ fun BottomNavItem(
                     imageVector = icon,
                     contentDescription = label,
                     tint = tint,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(25.dp)
                 )
             }
         } else {
@@ -627,7 +739,7 @@ fun BottomNavItem(
                 imageVector = icon,
                 contentDescription = label,
                 tint = tint,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(25.dp)
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
