@@ -220,7 +220,7 @@ fun MenuScreen(
                                 fontSize = 16.sp,
                                 fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedCategory == category) {
-                                    if (isMcDo) Color(0xFFE31837) else Color(0xFFE31837) // Selected color
+                                    if (isMcDo) Color(0xFFFFBC0D) else Color(0xFFE31837) // Yellow for McDo, Red for Jollibee
                                 } else {
                                     Color.Black
                                 },
